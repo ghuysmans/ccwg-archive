@@ -13,12 +13,23 @@ let extract html =
   select "img" soup |> iter (fun x -> show (attribute "src" x))
 
 let () =
-  let y = Yojson.Safe.from_channel stdin in
-  match Gcomp.Dashboard.of_yojson y with
-  | Error e -> prerr_endline e
-  | Ok {challenge = {recap; tasks; _}; _} ->
-    extract recap;
-    tasks |> List.iter (fun {Gcomp.Dashboard.analysis; statement; _} ->
-      extract analysis;
-      extract statement
+  match Sys.argv with
+  | [| _ |]
+  | [| _; "-h" |]
+  | [| _; "-help" |]
+  | [| _; "--help" |] ->
+    Printf.eprintf "usage: %s FILE...\n" Sys.argv.(0);
+    exit 1
+  | _ ->
+    List.tl (Array.to_list Sys.argv) |>
+    List.iter (fun fn ->
+      let y = Yojson.Safe.from_file fn in
+      match Gcomp.Dashboard.of_yojson y with
+      | Error e -> prerr_endline e
+      | Ok {challenge = {recap; tasks; _}; _} ->
+        extract recap;
+        tasks |> List.iter (fun {Gcomp.Dashboard.analysis; statement; _} ->
+          extract analysis;
+          extract statement
+        )
     )
