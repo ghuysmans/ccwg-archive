@@ -35,7 +35,7 @@ let extract_from_html html =
   f ~elt:"img" ~attr:"src" `Image
 
 
-let fetch_attachments {Gcomp.Dashboard.recap; tasks; _} =
+let fetch_attachments ~store {Gcomp.Dashboard.recap; tasks; _} =
   let ana, stmt =
     let a, s =
       tasks |>
@@ -50,21 +50,24 @@ let fetch_attachments {Gcomp.Dashboard.recap; tasks; _} =
   in
   let fetch_res base {uri; id; filename; _} =
     let fn = base ^ id ^ Filename.extension filename in
-    match%lwt Lwt_unix.file_exists fn with
-    | false ->
-      let%lwt () = Lwt_unix.sleep 1. in
-      let%lwt resp, body = Cohttp_lwt_unix.Client.get uri in
-      let%lwt data = Cohttp_lwt.Body.to_string body in
-      if Cohttp.Response.status resp = `OK then
-        let open Lwt_io in
-        let%lwt () = printl id in
-        let%lwt ch = open_file ~mode:Output fn in
-        let%lwt () = write ch data in
-        close ch
-      else
-        Lwt_io.eprintf "%s: bad HTTP status\n" id
-    | true ->
-      Lwt.return ()
+    if store then
+      match%lwt Lwt_unix.file_exists fn with
+      | false ->
+        let%lwt () = Lwt_unix.sleep 1. in
+        let%lwt resp, body = Cohttp_lwt_unix.Client.get uri in
+        let%lwt data = Cohttp_lwt.Body.to_string body in
+        if Cohttp.Response.status resp = `OK then
+          let open Lwt_io in
+          let%lwt () = printl id in
+          let%lwt ch = open_file ~mode:Output fn in
+          let%lwt () = write ch data in
+          close ch
+        else
+          Lwt_io.eprintf "%s: bad HTTP status\n" id
+      | true ->
+        Lwt.return ()
+    else
+      Lwt_io.printl (Uri.to_string uri)
   in
   let%lwt () = Lwt_list.iter_s (fetch_res "data/file/") stmt in
   let%lwt () = Lwt_list.iter_s (fetch_res "data/file/analysis/") ana in
@@ -116,14 +119,16 @@ let () = Lwt_main.run (
     | true ->
       Lwt.return ()
   in
-  match Sys.argv.(1) with
-  | "challenges" -> chall |> Lwt_list.iter_s (fetch_json `Challenges)
-  | "scoreboards" -> chall |> Lwt_list.iter_s (fetch_json `Scoreboards)
-  | "attachments" ->
+  match Sys.argv with
+  | [| _; "challenges" |] -> chall |> Lwt_list.iter_s (fetch_json `Challenges)
+  | [| _; "scoreboards" |] -> chall |> Lwt_list.iter_s (fetch_json `Scoreboards)
+  | [| _; "attachments" |]
+  | [| _; "list"; "attachments" |] ->
+    let store = Array.length Sys.argv = 2 in
     chall |>
     Lwt_list.iter_s (fun (c : Gcomp.Index.challenge) ->
       let%lwt ch = load_challenge c.id in
-      fetch_attachments ch
+      fetch_attachments ~store ch
     )
   | _ ->
     Printf.eprintf "usage: %s challenges|scoreboards|attachments\n" Sys.argv.(0);
