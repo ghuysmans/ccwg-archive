@@ -1,0 +1,4 @@
+(executable
+ (name client) (modes js)
+ (libraries gcomp js_of_ocaml-lwt)
+ (preprocess (pps js_of_ocaml-ppx lwt_ppx ppx_jsobject_conv)))
