@@ -64,7 +64,7 @@ let fetch_attachments {Gcomp.Dashboard.recap; tasks; _} =
       else
         Lwt_io.eprintf "%s: bad HTTP status\n" id
     | true ->
-      Lwt_io.eprintf "%s: dup\n" id
+      Lwt.return ()
   in
   let%lwt () = Lwt_list.iter_s (fetch_res "data/file/") stmt in
   let%lwt () = Lwt_list.iter_s (fetch_res "data/file/analysis/") ana in
@@ -114,7 +114,7 @@ let () = Lwt_main.run (
       else
         Lwt_io.eprintf "%s: bad HTTP status\n" c.id
     | true ->
-      Lwt_io.eprintf "%s: dup\n" c.id
+      Lwt.return ()
   in
   match Sys.argv.(1) with
   | "challenges" -> chall |> Lwt_list.iter_s (fetch_json `Challenges)
