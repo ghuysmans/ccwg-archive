@@ -6,9 +6,19 @@ let () = Lwt_main.run (
     | Ok {adventures = l; _} -> List.concat (List.map (fun a -> a.challenges) l)
     | Error e -> failwith e
   in
-  let base = "https://codejam.googleapis.com/dashboard/%s/poll?p=e30" ^^ "" in
   chall |> Lwt_list.iter_s (fun (c : Gcomp.Index.challenge) ->
-    let fn = "data/challenge/" ^ c.id ^ ".json" in
+    let base, fn =
+      match Sys.argv.(1) with
+      | "challenges" ->
+        "https://codejam.googleapis.com/dashboard/%s/poll?p=e30" ^^ "",
+        "data/challenge/" ^ c.id ^ ".json"
+      | "scoreboards" ->
+        "https://codejam.googleapis.com/scoreboard/%s/poll?p=eyJtaW5fcmFuayI6MSwibnVtX2NvbnNlY3V0aXZlX3VzZXJzIjo1MH0",
+        "data/scoreboard/" ^ c.id ^ ".json"
+      | _ ->
+        Printf.eprintf "usage: %s challenges|scoreboards\n" Sys.argv.(0);
+        exit 1
+    in
     match%lwt Lwt_unix.file_exists fn with
     | false ->
       let%lwt () = Lwt_unix.sleep 1. in
