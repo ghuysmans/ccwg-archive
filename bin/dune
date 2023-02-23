@@ -1,1 +1,1 @@
-(executable (name extract) (libraries har))
+(executables (names extract enum) (libraries har gcomp))
