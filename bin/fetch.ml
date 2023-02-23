@@ -80,57 +80,69 @@ let load_challenge id =
   | Error e -> Lwt.fail_with e
   | Ok {challenge; _} -> Lwt.return challenge
 
+let fetch_json uri fn =
+  match%lwt Lwt_unix.file_exists fn with
+  | false ->
+    let%lwt () = Lwt_unix.sleep 1. in
+    let%lwt resp, body = Cohttp_lwt_unix.Client.get uri in
+    let%lwt raw = Cohttp_lwt.Body.to_string body in
+    if Cohttp.Response.status resp = `OK then
+      match Base64.(decode ~pad:false ~alphabet:uri_safe_alphabet raw) with
+      | Error (`Msg e) -> Lwt_io.eprintf "%s: %s\n" fn e
+      | Ok data ->
+        let open Lwt_io in
+        let%lwt () = printl fn in
+        let%lwt ch = open_file ~mode:Output fn in
+        let%lwt () = write ch data in
+        close ch
+    else
+      Lwt_io.eprintf "%s: bad HTTP status\n" fn
+  | true ->
+    Lwt.return ()
+
+let fetch_challenge (c : Gcomp.Index.challenge) =
+  let uri =
+    Uri.of_string @@
+    "https://codejam.googleapis.com/dashboard/" ^ c.id ^ "/poll?p=e30"
+  in
+  fetch_json uri ("data/challenge/" ^ c.id ^ ".json")
+
+let fetch_scoreboard (c : Gcomp.Index.challenge) =
+  let uri =
+    Uri.of_string @@
+    "https://codejam.googleapis.com/scoreboard/" ^ c.id ^
+    "/poll?p=eyJtaW5fcmFuayI6MSwibnVtX2NvbnNlY3V0aXZlX3VzZXJzIjo1MH0"
+  in
+  fetch_json uri ("data/scoreboard/" ^ c.id ^ ".json")
+
+let adventures = "data/adventures.json"
+
+let fetch_adventures () =
+  let uri = Uri.of_string @@ "https://codejam.googleapis.com/poll?p=e30" in
+  fetch_json uri adventures
+
 
 let () = Lwt_main.run (
-  let chall =
-    let y = Yojson.Safe.from_file "data/_poll?p=e30" in
+  let chall () =
+    let y = Yojson.Safe.from_file adventures in
     let open Gcomp.Index in
     match of_yojson y with
     | Ok {adventures = l; _} -> List.concat (List.map (fun a -> a.challenges) l)
     | Error e -> failwith e
   in
-  let fetch_json t (c : Gcomp.Index.challenge) =
-    let base, fn =
-      match t with
-      | `Challenges ->
-        "https://codejam.googleapis.com/dashboard/%s/poll?p=e30" ^^ "",
-        "data/challenge/" ^ c.id ^ ".json"
-      | `Scoreboards ->
-        "https://codejam.googleapis.com/scoreboard/%s/poll?p=eyJtaW5fcmFuayI6MSwibnVtX2NvbnNlY3V0aXZlX3VzZXJzIjo1MH0",
-        "data/scoreboard/" ^ c.id ^ ".json"
-    in
-    match%lwt Lwt_unix.file_exists fn with
-    | false ->
-      let%lwt () = Lwt_unix.sleep 1. in
-      let uri = Printf.sprintf base c.id |> Uri.of_string in
-      let%lwt resp, body = Cohttp_lwt_unix.Client.get uri in
-      let%lwt raw = Cohttp_lwt.Body.to_string body in
-      if Cohttp.Response.status resp = `OK then
-        match Base64.(decode ~pad:false ~alphabet:uri_safe_alphabet raw) with
-        | Error (`Msg e) -> Lwt_io.eprintf "%s: %s\n" c.id e
-        | Ok data ->
-          let open Lwt_io in
-          let%lwt () = printf "%s %s\n" c.id c.title in
-          let%lwt ch = open_file ~mode:Output fn in
-          let%lwt () = write ch data in
-          close ch
-      else
-        Lwt_io.eprintf "%s: bad HTTP status\n" c.id
-    | true ->
-      Lwt.return ()
-  in
   match Sys.argv with
-  | [| _; "challenges" |] -> chall |> Lwt_list.iter_s (fetch_json `Challenges)
-  | [| _; "scoreboards" |] -> chall |> Lwt_list.iter_s (fetch_json `Scoreboards)
+  | [| _; "adventures" |] -> fetch_adventures ()
+  | [| _; "challenges" |] -> chall () |> Lwt_list.iter_s fetch_challenge
+  | [| _; "scoreboards" |] -> chall () |> Lwt_list.iter_s fetch_scoreboard
   | [| _; "attachments" |]
   | [| _; "list"; "attachments" |] ->
     let store = Array.length Sys.argv = 2 in
-    chall |>
+    chall () |>
     Lwt_list.iter_s (fun (c : Gcomp.Index.challenge) ->
       let%lwt ch = load_challenge c.id in
       fetch_attachments ~store ch
     )
   | _ ->
-    Printf.eprintf "usage: %s challenges|scoreboards|attachments\n" Sys.argv.(0);
+    Printf.eprintf "usage: %s adventures|challenges|scoreboards|attachments\n" Sys.argv.(0);
     exit 1
 )
