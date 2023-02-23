@@ -3,7 +3,7 @@ type test = {
   typ: int [@key "type"] [@default -1];
   type_s: string [@key "type__str"] [@default ""];
   value: int [@default 0];
-} [@@deriving yojson {strict=false}]
+}
 
 type task = {
   analysis: string [@default ""];
@@ -15,7 +15,7 @@ type task = {
   title: string;
   trial_input_type: int [@default -1];
   trial_input_type_s: string [@key "trial_input_type__str"] [@default ""];
-} [@@deriving yojson {strict=false}]
+}
 
 type challenge = {
   are_results_final: bool;
@@ -25,15 +25,15 @@ type challenge = {
   result_status_s: string [@key "result_status__str"];
   tasks: task list;
   title: string;
-} [@@deriving yojson {strict=false}]
+}
 
 type language = {
   id: int;
   id_s: string [@key "id__str"];
   name: string;
-} [@@deriving yojson {strict=false}]
+}
 
 type t = {
   challenge: challenge;
   languages: language list;
-} [@@deriving yojson]
+}
