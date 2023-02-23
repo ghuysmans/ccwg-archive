@@ -2,13 +2,15 @@ open Soup
 
 let extract html =
   let soup = parse html in
-  let show url =
-    let prefix = "https://codejam.googleapis.com/dashboard/get_file/" in
-    if String.starts_with ~prefix url then
-      print_endline url
+  let show = function
+    | None -> ()
+    | Some url ->
+      let prefix = "https://codejam.googleapis.com/dashboard/get_file/" in
+      if String.starts_with ~prefix url then
+        print_endline url
   in
-  select "a" soup |> iter (fun x -> show (R.attribute "href" x));
-  select "img" soup |> iter (fun x -> show (R.attribute "src" x))
+  select "a" soup |> iter (fun x -> show (attribute "href" x));
+  select "img" soup |> iter (fun x -> show (attribute "src" x))
 
 let () =
   let y = Yojson.Safe.from_channel stdin in
