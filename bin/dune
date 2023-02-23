@@ -1,1 +1,4 @@
-(executables (names extract enum) (libraries har gcomp))
+(executables
+ (names extract enum fetch)
+ (libraries har gcomp cohttp-lwt-unix)
+ (preprocess (pps lwt_ppx)))
