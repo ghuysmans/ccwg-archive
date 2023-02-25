@@ -24,7 +24,7 @@ type t = Gcomp.Index.t = {
 
 
 let () = Lwt.async (fun () ->
-  let%lwt r = XmlHttpRequest.get "/adventures.json" in
+  let%lwt r = XmlHttpRequest.get "https://ghuysmans.github.io/ccwg-archive/data/adventures.json" in
   if r.code = 200 then
     match of_jsobject (Js.Unsafe.global##._JSON##parse r.content) with
     | Ok {adventures; _} ->
