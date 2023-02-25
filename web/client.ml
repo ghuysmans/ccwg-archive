@@ -33,8 +33,6 @@ let () = Lwt.async (fun () ->
     | Error e ->
       prerr_endline e;
       Lwt.return ()
-  else (
-    prerr_endline "http error";
+  else
     Lwt.return ()
-  )
 )
